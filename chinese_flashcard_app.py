@@ -43,18 +43,34 @@ def build_review_table(df):
         base = {
             "set_nr": row["set_nr"],
             "character": row["character"],
-            "learned_date": row["learned_date"]
+            "learned_date": row["learned_date"],
+            "correct": row["correct"] if "correct" in row else 0,  # Ensure correct column exists
+            "wrong": row["wrong"] if "wrong" in row else 0         # Ensure wrong column exists
         }
+
         for day in REVIEW_STEPS[1:]:
             review_date = row["learned_date"] + datetime.timedelta(days=day)
             label = f"Day {day} ({review_date.strftime('%Y-%m-%d')})"
-            if review_date < TODAY:
-                base[label] = "✅"
+
+            # For Day 1, check if user has clicked "Right" or "Wrong" (completed)
+            if day == 1:
+                if row["correct"] > 0 or row["wrong"] > 0:  # If any interaction
+                    base[label] = "✅"
+                else:
+                    base[label] = "--"  # If not interacted yet
+            # For other days (Day 2, Day 4, etc.), follow the usual review date logic
+            elif review_date < TODAY:
+                if row["correct"] > 0 or row["wrong"] > 0:
+                    base[label] = "✅"
+                else:
+                    base[label] = "❌"
             elif review_date == TODAY:
                 base[label] = "❌"
             else:
                 base[label] = "--"
+        
         table.append(base)
+
     return pd.DataFrame(table)
 
 # --- AUTHENTICATION ---
@@ -191,7 +207,17 @@ elif menu == "Flashcard":
                 st.markdown("---")
                 st.markdown(
                     f"""
-                    <div style='text-align: center; font-size: 96px; font-family: FangSong, SimHei, Noto Sans SC, Microsoft YaHei, serif; padding: 40px 20px; border: 2px solid #ccc; border-radius: 16px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; background-color: #f9f9f9; color: black; font-weight: bold;'>
+                    <div class='hanzi-card' style='
+                        text-align: center;
+                        font-size: 96px;
+                        padding: 40px 20px;
+                        border: 2px solid #ccc;
+                        border-radius: 16px;
+                        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+                        margin-bottom: 20px;
+                        background-color: #f9f9f9;
+                        color: black;
+                        font-weight: bold;'>
                         {row["character"]}
                     </div>
                     """,
@@ -199,31 +225,43 @@ elif menu == "Flashcard":
                 )
 
                 st.markdown(
-    f"""
-    <details>
-    <summary style='font-size:18px;'>👀 Show Hint</summary>
-    <ul style='font-size:16px;'>
-        <li><strong>Pinyin:</strong> {row['pinyin']}</li>
-        <li><strong>Example:</strong> {row['example']}</li>
-    </ul>
-    </details>
-    """,
-    unsafe_allow_html=True
-)
+                    f"""
+                    <details>
+                    <summary style='font-size:18px;'>👀 Show Hint</summary>
+                    <ul style='font-size:16px;'>
+                        <li><strong>Pinyin:</strong> {row['pinyin']}</li>
+                        <li><strong>Example:</strong> {row['example']}</li>
+                    </ul>
+                    </details>
+                    """,
+                    unsafe_allow_html=True
+                )
 
                 st.markdown(f"Right: {row['correct']} | Wrong: {row['wrong']}")
 
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("✅ Right", key=f"correct_{idx}_{row['character']}"):
+                        #df.at[idx, "correct"] = 0  # Reset correct value to 0
                         df.at[idx, "correct"] += 1
                         save_data(df)
-                        st.experimental_rerun()
+                        st.session_state.updated = True
+                        st.success(f"Marked {row['character']} as correct.")
+                
                 with col2:
                     if st.button("❌ Wrong", key=f"wrong_{idx}_{row['character']}"):
+                        #df.at[idx, "wrong"] = 0  # Reset correct value to 0
                         df.at[idx, "wrong"] += 1
                         save_data(df)
-                        st.experimental_rerun()
+                        st.session_state.updated = True
+                        st.success(f"Marked {row['character']} as wrong.")
+
+        if 'updated' in st.session_state and st.session_state.updated:
+            st.session_state.updated = False  # Reset the update flag
+            st.experimental_rerun()  # Force a rerun using session_state
+
+
+
 
 elif menu == "Dashboard":
     st.header("📊 Dashboard")
@@ -233,9 +271,11 @@ elif menu == "Dashboard":
     selected_set = st.selectbox("Filter by Set Number:", options=set_options)
     filtered_df = df[df["set_nr"] == selected_set]
     review_table = build_review_table(filtered_df)
+
     st.dataframe(review_table)
 
     st.subheader("📉 Frequently Wrong Characters")
     wrong_df = df[df["wrong"] >= 2]
     for i, row in wrong_df.iterrows():
       st.markdown(f"- {row['character']} (Wrong: {row['wrong']})")
+
