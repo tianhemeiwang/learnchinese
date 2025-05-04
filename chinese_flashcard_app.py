@@ -187,22 +187,34 @@ elif menu == "Flashcard":
         st.success("No reviews due today! 🎉")
     else:
         for idx, row in due_df.iterrows():
-            st.subheader(row["character"])
+            with st.container():
+                st.markdown("---")
+                st.markdown(
+                    f"""
+                    <div style='text-align: center; font-size: 96px; font-family: SimHei, Noto Sans SC, Microsoft YaHei, sans-serif; padding: 40px 20px; border: 2px solid #ccc; border-radius: 16px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; background-color: #f9f9f9; color: black; font-weight: bold;'>
+                        {row["character"]}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-            with st.expander("👀 Show Hint"):
-                st.markdown(f"- **Pinyin**: {row['pinyin']}")
-                if "meaning" in df.columns:
-                    st.markdown(f"- **Meaning**: {row['meaning']}")
-                st.markdown(f"- **Example**: {row['example']}")
+                with st.expander("👀 Show Hint"):
+                    st.markdown(f"- **Pinyin**: {row['pinyin']}")
+                    if "meaning" in df.columns:
+                        st.markdown(f"- **Meaning**: {row['meaning']}")
+                    st.markdown(f"- **Example**: {row['example']}")
 
-            st.text(f"Right: {row['correct']} | Wrong: {row['wrong']}")
+                st.markdown(f"Right: {row['correct']} | Wrong: {row['wrong']}")
 
-            col1, col2 = st.columns(2)
-            if col1.button("✅ Correct", key=f"right_{idx}"):
-                df.at[idx, "correct"] += 1
-                save_data(df)
-                st.experimental_rerun()
-            if col2.button("❌ Wrong", key=f"wrong_{idx}"):
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("✅ Correct", key=f"right_{idx}"):
+                        df.at[idx, "correct"] += 1
+                        save_data(df)
+                        st.experimental_rerun()
+                
+        with col2:
+            if st.button("❌ Wrong", key=f"wrong_{idx}_{row['character']}"):
                 df.at[idx, "wrong"] += 1
                 save_data(df)
                 st.experimental_rerun()
@@ -217,6 +229,7 @@ elif menu == "Parent Dashboard":
     review_table = build_review_table(filtered_df)
     st.dataframe(review_table)
 
-    st.subheader("📉 Frequently Wrong Characters")
+    st.subheader("📉 Frequently Wrong Characters (>2 times)")
     wrong_df = df[df["wrong"] >= 2]
-    st.dataframe(wrong_df[["character", "wrong"]])
+    for i, row in wrong_df.iterrows():
+        st.markdown(f"- {row['character']} (Wrong: {row['wrong']})")
