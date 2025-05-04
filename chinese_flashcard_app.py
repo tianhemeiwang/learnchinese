@@ -212,12 +212,11 @@ elif menu == "Flashcard":
                         df.at[idx, "correct"] += 1
                         save_data(df)
                         st.experimental_rerun()
-                
-        with col2:
-            if st.button("❌ Wrong", key=f"wrong_{idx}_{row['character']}"):
-                df.at[idx, "wrong"] += 1
-                save_data(df)
-                st.experimental_rerun()
+                with col2:
+                    if st.button("❌ Wrong", key=f"wrong_{idx}_{row['character']}"):
+                        df.at[idx, "wrong"] += 1
+                        save_data(df)
+                        st.experimental_rerun()
 
 elif menu == "Parent Dashboard":
     st.header("📊 Parent Dashboard")
@@ -229,7 +228,7 @@ elif menu == "Parent Dashboard":
     review_table = build_review_table(filtered_df)
     st.dataframe(review_table)
 
-    st.subheader("📉 Frequently Wrong Characters (>2 times)")
+    st.subheader("📉 Frequently Wrong Characters")
     wrong_df = df[df["wrong"] >= 2]
     for i, row in wrong_df.iterrows():
-        st.markdown(f"- {row['character']} (Wrong: {row['wrong']})")
+      st.markdown(f"- {row['character']} (Wrong: {row['wrong']})")
