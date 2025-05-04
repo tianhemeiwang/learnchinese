@@ -191,24 +191,31 @@ elif menu == "Flashcard":
                 st.markdown("---")
                 st.markdown(
                     f"""
-                    <div style='text-align: center; font-size: 96px; font-family: SimHei, Noto Sans SC, Microsoft YaHei, sans-serif; padding: 40px 20px; border: 2px solid #ccc; border-radius: 16px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; background-color: #f9f9f9; color: black; font-weight: bold;'>
+                    <div style='text-align: center; font-size: 96px; font-family: FangSong, SimHei, Noto Sans SC, Microsoft YaHei, serif; padding: 40px 20px; border: 2px solid #ccc; border-radius: 16px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; background-color: #f9f9f9; color: black; font-weight: bold;'>
                         {row["character"]}
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-                with st.expander("👀 Show Hint"):
-                    st.markdown(f"- **Pinyin**: {row['pinyin']}")
-                    if "meaning" in df.columns:
-                        st.markdown(f"- **Meaning**: {row['meaning']}")
-                    st.markdown(f"- **Example**: {row['example']}")
+                st.markdown(
+    f"""
+    <details>
+    <summary style='font-size:18px;'>👀 Show Hint</summary>
+    <ul style='font-size:16px;'>
+        <li><strong>Pinyin:</strong> {row['pinyin']}</li>
+        <li><strong>Example:</strong> {row['example']}</li>
+    </ul>
+    </details>
+    """,
+    unsafe_allow_html=True
+)
 
                 st.markdown(f"Right: {row['correct']} | Wrong: {row['wrong']}")
 
-                col1, col2 = st.columns([1, 1])
+                col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("✅ Correct", key=f"right_{idx}"):
+                    if st.button("✅ Right", key=f"correct_{idx}_{row['character']}"):
                         df.at[idx, "correct"] += 1
                         save_data(df)
                         st.experimental_rerun()
