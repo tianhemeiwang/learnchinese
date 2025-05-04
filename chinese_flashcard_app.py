@@ -77,7 +77,7 @@ def check_password():
 check_password()
 
 # --- APP UI ---
-st.title("📚 Chinese Flashcard App")
+st.title("📚 伊莱汉字学习")
 
 df = load_data()
 
