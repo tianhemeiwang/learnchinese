@@ -81,7 +81,7 @@ st.title("📚 伊莱汉字学习")
 
 df = load_data()
 
-menu = st.sidebar.radio("Choose mode:", ["Flashcard", "Parent Dashboard", "Maintain Sets"])
+menu = st.sidebar.radio("Choose mode:", ["Flashcard", "Dashboard", "Maintain Sets"])
 
 if menu == "Maintain Sets":
     action = st.radio("What would you like to do?", ["New Set", "Edit Set", "Delete Set"])
@@ -225,8 +225,8 @@ elif menu == "Flashcard":
                         save_data(df)
                         st.experimental_rerun()
 
-elif menu == "Parent Dashboard":
-    st.header("📊 Parent Dashboard")
+elif menu == "Dashboard":
+    st.header("📊 Dashboard")
 
     st.subheader("📅 Review Plan")
     set_options = sorted(df["set_nr"].unique())
