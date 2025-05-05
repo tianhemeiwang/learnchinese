@@ -1,8 +1,8 @@
-set_nr,character,pinyin,example,learned_date,correct,wrong
-23,坐,zuò,坐车 坐飞机,2025-05-03,1,0
-23,已,yǐ,已经,2025-05-03,0,0
-23,经,jīng,经过 经历,2025-05-03,0,0
-23,丁,dīng,丁字路口,2025-05-03,0,0
-23,共,gòng,共同 一共,2025-05-03,0,0
-23,元,yuán,元宵,2025-05-03,0,0
-23,钟,zhōng,钟表,2025-05-03,0,0
+set_nr,character,pinyin,example,learned_date,correct,wrong,reviewed_on_day_1,marked,reviewed_on_day_2,reviewed_on_day_4,reviewed_on_day_7,reviewed_on_day_15,reviewed_on_day_30,reviewed_on_day_90,reviewed_on_day_180
+23,坐,zuò,坐车 坐飞机,2025-05-03,1,0,True,False,True,False,False,False,False,False,False
+23,已,yǐ,已经,2025-05-03,0,0,False,False,False,False,False,False,False,False,False
+23,经,jīng,经过 经历,2025-05-03,0,0,False,False,False,False,False,False,False,False,False
+23,丁,dīng,丁字路口,2025-05-03,0,0,False,False,True,False,False,False,False,False,False
+23,共,gòng,共同 一共,2025-05-03,0,0,False,False,False,False,False,False,False,False,False
+23,元,yuán,元宵,2025-05-03,0,0,False,False,False,False,False,False,False,False,False
+23,钟,zhōng,钟表,2025-05-03,0,0,False,False,False,False,False,False,False,False,False

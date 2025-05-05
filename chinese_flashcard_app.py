@@ -1,4 +1,3 @@
-# chinese_flashcard_app.py
 import streamlit as st
 import pandas as pd
 import datetime
@@ -14,9 +13,17 @@ def load_data():
         df["learned_date"] = pd.to_datetime(df["learned_date"]).dt.date
         if "set_nr" not in df.columns:
             df["set_nr"] = 0
+        # Ensure that the "marked" column exists, and set it to False if it doesn't exist.
+        if "marked" not in df.columns:
+            df["marked"] = False
+        # Ensure that there is no "reviewed" column, but ensure the review columns exist
+        for day in REVIEW_STEPS[1:]:
+            review_column = f"reviewed_on_day_{day}"
+            if review_column not in df.columns:
+                df[review_column] = False  # Default to False if not exists
         return df
     except FileNotFoundError:
-        return pd.DataFrame(columns=["set_nr","character", "pinyin", "example", "learned_date", "correct", "wrong"])
+        return pd.DataFrame(columns=["set_nr", "character", "pinyin", "example", "learned_date"])
 
 # --- SAVE DATA ---
 def save_data(df):
@@ -43,54 +50,24 @@ def build_review_table(df):
         base = {
             "set_nr": row["set_nr"],
             "character": row["character"],
-            "learned_date": row["learned_date"],
-            "correct": row["correct"] if "correct" in row else 0,  # Ensure correct column exists
-            "wrong": row["wrong"] if "wrong" in row else 0         # Ensure wrong column exists
+            "learned_date": row["learned_date"]
         }
 
+        # Set status for each day
         for day in REVIEW_STEPS[1:]:
             review_date = row["learned_date"] + datetime.timedelta(days=day)
             label = f"Day {day} ({review_date.strftime('%Y-%m-%d')})"
-
-            # For Day 1, check if user has clicked "Right" or "Wrong" (completed)
-            if day == 1:
-                if row["correct"] > 0 or row["wrong"] > 0:  # If any interaction
-                    base[label] = "✅"
-                else:
-                    base[label] = "--"  # If not interacted yet
-            # For other days (Day 2, Day 4, etc.), follow the usual review date logic
-            elif review_date < TODAY:
-                if row["correct"] > 0 or row["wrong"] > 0:
-                    base[label] = "✅"
-                else:
-                    base[label] = "❌"
-            elif review_date == TODAY:
-                base[label] = "❌"
+            
+            # Check if reviewed for today
+            review_column = f"reviewed_on_day_{day}"
+            if review_date == TODAY and row.get(review_column, False):
+                base[label] = "✅"
             else:
-                base[label] = "--"
+                base[label] = "--"  # If not reviewed yet or date is not today
         
         table.append(base)
 
     return pd.DataFrame(table)
-
-# --- AUTHENTICATION ---
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == "yilai":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
-        st.stop()
-    elif not st.session_state["password_correct"]:
-        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
-        st.error("❌ Incorrect password")
-        st.stop()
-
-check_password()
 
 # --- APP UI ---
 st.title("📚 伊莱汉字学习")
@@ -99,7 +76,95 @@ df = load_data()
 
 menu = st.sidebar.radio("Choose mode:", ["Flashcard", "Dashboard", "Maintain Sets"])
 
-if menu == "Maintain Sets":
+if menu == "Flashcard":
+    st.header(f"🎴 Today's Review ({TODAY.strftime('%Y-%m-%d')})")
+    due_df = get_due_characters(df)
+
+    if due_df.empty:
+        st.success("No reviews due today! 🎉")
+    else:
+        for idx, row in due_df.iterrows():
+            with st.container():
+                st.markdown("---")
+                st.markdown(
+                    f"""
+                    <div class='hanzi-card' style='
+                        text-align: center;
+                        font-size: 96px;
+                        padding: 40px 20px;
+                        border: 2px solid #ccc;
+                        border-radius: 16px;
+                        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+                        margin-bottom: 20px;
+                        background-color: #f9f9f9;
+                        color: black;
+                        font-weight: bold;'>
+                        {row["character"]}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.markdown(
+                    f"""
+                    <details>
+                    <summary style='font-size:18px;'>👀 Show Hint</summary>
+                    <ul style='font-size:16px;'>
+                        <li><strong>Pinyin:</strong> {row['pinyin']}</li>
+                        <li><strong>Example:</strong> {row['example']}</li>
+                    </ul>
+                    </details>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                # Show checkboxes for "Reviewed" and "Mark"
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Check which day today corresponds to
+                    for step in REVIEW_STEPS[1:]:
+                        review_date = row["learned_date"] + datetime.timedelta(days=step)
+                        review_column = f"reviewed_on_day_{step}"
+
+                        # Check if today's date matches the review date
+                        if review_date == TODAY:
+                            # Default value for Reviewed checkbox (based on current status)
+                            is_reviewed = st.checkbox(f"Reviewed - Day {step}", value=row.get(review_column, False), key=f"reviewed_{idx}_day_{step}")
+                            if is_reviewed != row.get(review_column, False):
+                                # Update the review status when the checkbox is toggled
+                                df.at[idx, review_column] = is_reviewed
+                                save_data(df)
+
+                with col2:
+                    is_marked = st.checkbox("Mark", value=row.get("marked", False), key=f"mark_{idx}")
+                    if is_marked != row.get("marked", False):
+                        # Update the marked status when the checkbox is toggled
+                        df.at[idx, "marked"] = is_marked
+                        save_data(df)
+
+elif menu == "Dashboard":
+    st.header("📊 Dashboard")
+
+    st.subheader("📅 Review Plan")
+    set_options = sorted(df["set_nr"].unique())
+    selected_set = st.selectbox("Filter by Set Number:", options=set_options)
+    filtered_df = df[df["set_nr"] == selected_set]
+    
+    # Review plan display
+    review_table = build_review_table(filtered_df)
+    st.dataframe(review_table)
+
+    # Display marked characters
+    st.subheader("📋 Marked Characters")
+    marked_df = df[df["marked"] == True]  # Filter based on marked status
+    if marked_df.empty:
+        st.write("No characters marked yet.")
+    else:
+        for i, row in marked_df.iterrows():
+            st.markdown(f"- {row['character']}")
+
+elif menu == "Maintain Sets":
+    # Existing code for Maintain Sets stays as is
     action = st.radio("What would you like to do?", ["New Set", "Edit Set", "Delete Set"])
 
     if action == "New Set":
@@ -119,8 +184,7 @@ if menu == "Maintain Sets":
                         "pinyin": new_pinyin,
                         "example": new_example,
                         "learned_date": new_set_date,
-                        "correct": 0,
-                        "wrong": 0
+                        "reviewed": False
                     }, ignore_index=True)
                     save_data(df)
                     st.success(f"Character added to set {new_set_nr}!")
@@ -175,8 +239,7 @@ if menu == "Maintain Sets":
                         "pinyin": add_pinyin,
                         "example": add_example,
                         "learned_date": new_set_date,
-                        "correct": 0,
-                        "wrong": 0
+                        "reviewed": False
                     }, ignore_index=True)
                     save_data(df)
                     st.success(f"Character '{add_char}' added to set {set_to_edit}!")
@@ -194,88 +257,3 @@ if menu == "Maintain Sets":
                 save_data(df)
                 st.success(f"Set {set_to_delete} has been deleted.")
                 st.experimental_rerun()
-
-elif menu == "Flashcard":
-    st.header(f"🎴 Today's Review ({TODAY.strftime('%Y-%m-%d')})")
-    due_df = get_due_characters(df)
-
-    if due_df.empty:
-        st.success("No reviews due today! 🎉")
-    else:
-        for idx, row in due_df.iterrows():
-            with st.container():
-                st.markdown("---")
-                st.markdown(
-                    f"""
-                    <div class='hanzi-card' style='
-                        text-align: center;
-                        font-size: 96px;
-                        padding: 40px 20px;
-                        border: 2px solid #ccc;
-                        border-radius: 16px;
-                        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-                        margin-bottom: 20px;
-                        background-color: #f9f9f9;
-                        color: black;
-                        font-weight: bold;'>
-                        {row["character"]}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-                st.markdown(
-                    f"""
-                    <details>
-                    <summary style='font-size:18px;'>👀 Show Hint</summary>
-                    <ul style='font-size:16px;'>
-                        <li><strong>Pinyin:</strong> {row['pinyin']}</li>
-                        <li><strong>Example:</strong> {row['example']}</li>
-                    </ul>
-                    </details>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-                st.markdown(f"Right: {row['correct']} | Wrong: {row['wrong']}")
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("✅ Right", key=f"correct_{idx}_{row['character']}"):
-                        #df.at[idx, "correct"] = 0  # Reset correct value to 0
-                        df.at[idx, "correct"] += 1
-                        save_data(df)
-                        st.session_state.updated = True
-                        st.success(f"Marked {row['character']} as correct.")
-                
-                with col2:
-                    if st.button("❌ Wrong", key=f"wrong_{idx}_{row['character']}"):
-                        #df.at[idx, "wrong"] = 0  # Reset correct value to 0
-                        df.at[idx, "wrong"] += 1
-                        save_data(df)
-                        st.session_state.updated = True
-                        st.success(f"Marked {row['character']} as wrong.")
-
-        if 'updated' in st.session_state and st.session_state.updated:
-            st.session_state.updated = False  # Reset the update flag
-            st.experimental_rerun()  # Force a rerun using session_state
-
-
-
-
-elif menu == "Dashboard":
-    st.header("📊 Dashboard")
-
-    st.subheader("📅 Review Plan")
-    set_options = sorted(df["set_nr"].unique())
-    selected_set = st.selectbox("Filter by Set Number:", options=set_options)
-    filtered_df = df[df["set_nr"] == selected_set]
-    review_table = build_review_table(filtered_df)
-
-    st.dataframe(review_table)
-
-    st.subheader("📉 Frequently Wrong Characters")
-    wrong_df = df[df["wrong"] >= 2]
-    for i, row in wrong_df.iterrows():
-      st.markdown(f"- {row['character']} (Wrong: {row['wrong']})")
-
